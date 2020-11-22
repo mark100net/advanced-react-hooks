@@ -77,7 +77,7 @@ function PokemonInfo({pokemonName}) {
     }
     run(fetchPokemon(pokemonName, 5000))
     return () => isMountedRef.current = false
-  }, [pokemonName], run)
+  }, [pokemonName, run])
 
   if (status === 'idle' || !pokemonName) {
     return 'Submit a pokemon'
