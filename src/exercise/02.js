@@ -13,22 +13,27 @@ import {
 
 function useAsync(initialState, isMountedRef) {
 
-  const [state, dispatch] = React.useReducer(asyncReducer, {
+  const [state, unSafeDispatch] = React.useReducer(asyncReducer, {
     status: 'idle',
     data: null,
     error: null,
     ...initialState
   })
 
-  React.useEffect(() => {
-    return (() => console.log("cleanup"))
-  })
-
-  const safeDispatch = React.useCallback((s) =>  {
-    if (isMountedRef.current) {
-      dispatch(s)
+  const dispatch = React.useCallback((...args) => {
+    if (mountedRef.current) {
+      unSafeDispatch(...args)
     }
-  }, [dispatch, isMountedRef])
+  }, [])
+
+  const mountedRef = React.useRef(false)
+
+  React.useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   const run = React.useCallback((promise) => {
     if (!promise) {
@@ -36,10 +41,10 @@ function useAsync(initialState, isMountedRef) {
     }
     dispatch({type: 'pending'})
     promise.then(
-      data => safeDispatch({type: 'resolved', data}),
-      error => safeDispatch({type: 'rejected', error})
+      data => dispatch({type: 'resolved', data}),
+      error => dispatch({type: 'rejected', error})
     )
-  }, [safeDispatch])
+  }, [dispatch])
 
   // 🐨 this is going to be our generic asyncReducer
   function asyncReducer(state, action) {
@@ -64,19 +69,15 @@ function useAsync(initialState, isMountedRef) {
 
 function PokemonInfo({pokemonName}) {
 
-  const isMountedRef = React.useRef(null)
-
   const {data: pokemon, status, error, run} = useAsync({
     status: pokemonName ? 'pending' : 'idle',
-  }, isMountedRef)
+  })
 
   React.useEffect(() => {
-    isMountedRef.current = true
     if (!pokemonName) {
       return
     }
     run(fetchPokemon(pokemonName, 5000))
-    return () => isMountedRef.current = false
   }, [pokemonName, run])
 
   if (status === 'idle' || !pokemonName) {
